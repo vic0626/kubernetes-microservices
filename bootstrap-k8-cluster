@@ -1,0 +1,15 @@
+Bootstrap the Kubernetes Cluster
+
+Installation Steps:
+Initialize the Cluster on the Master:
+# sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+Set up kubeconfig for a Local User on the Master
+# mkdir -p $HOME/.kube
+
+# sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+
+# sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Join Nodes to the Cluster
+# sudo kubeadm join $controller_private_ip:6443 --token $token --discovery-token-ca-cert-hash $hash
