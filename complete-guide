@@ -1,0 +1,69 @@
+e
+Install Docker on All of the Cluster Nodes
+Add the GPG key:
+cloud_user@master:~$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+Add Docker repository:
+cloud_user@master:~$ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+Update packages:
+cloud_user@master:~$ sudo apt-get update
+
+Install Docker:
+cloud_user@master:~$ sudo apt-get install -y docker-ce=18.06.1~ce~3-0~ubuntu
+
+Run all of these commands on the two worker nodes as well.
+
+check_circle
+Install Kubernetes Binaries (kubeadm, kubelet, and kubectl) on All of the Cluster Nodes
+Add GPG key:
+# curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+Add Kubernetes repository:
+
+cloud_user@master:~$cat << EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+Resynchronize the package index:
+cloud_user@master:~$ sudo apt-get update
+
+Install the required packages:
+cloud_user@master:~$ sudo apt-get install -y kubelet=1.12.7-00 kubeadm=1.12.7-00 kubectl=1.12.7-00
+
+Prevent packages from being automatically updated:
+cloud_user@master:~$ sudo apt-mark hold kubelet kubeadm kubectl
+
+Let's make sure we run these on the other two nodes.
+
+check_circle
+Initialize the Master Node
+Initialize the master using kubeadm and specify the pod network:
+cloud_user@master:~$ sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+Configure the cloud_user to be able to administer the cluster:
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+check_circle
+Join the Worker Nodes to the Master Node
+Use kubeadm to join the worker nodes to the master node (the command is provided after kubeadm init is run on the master):
+
+cloud_user@worker1:~$ sudo kubeadm join $controller_private_ip:6443 --token $token --discovery-token-ca-cert-hash $hash cloud_user@worker2:~$ sudo kubeadm join $controller_private_ip:6443 --token $token --discovery-token-ca-cert-hash $hash
+
+To make sure the nodes joined the cluster, run the command to check, on the master node: cloud_user@master:~$ kubectl get nodes
+
+We should see both workers nodes show up in the list.
+
+check_circle
+Install the Flannel Network Add-On
+Enable net.bridge.bridge-nf-call-iptables to ensure that the the iptables proxy functions correctly.
+
+cloud_user@master:~$ echo "net.bridge.bridge-nf-call-iptables=1" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+Make sure we run this on the worker nodes too.
+
+Install flannel on the master:
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/bc79dd1505b0c8681ece4de4c0d86c5cd2643275/Documentation/kube-flannel.yml
+
+Check out how things are going again by running kubectl get nodes on the master again. They should all have a status of READY now.
